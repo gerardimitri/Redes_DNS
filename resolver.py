@@ -1,6 +1,9 @@
 from http import client
+from ipaddress import ip_address
 import socket
 from dnslib import DNSRecord
+from dnslib.dns import CLASS, QTYPE
+import dnslib
 
 SOCKET_HOST = "localhost"
 SOCKET_PORT = 5300
@@ -40,21 +43,62 @@ def DNSresolver(domain_name, server_address=("8.8.8.8", 53)):
            domain_name = domain_name + "."
      domain = domain_name.split(".")
      domain.reverse()
-     for i in range(1, len(domain)):
-          domain[i] = domain[i] + "." + domain[i-1]
+     #[, cl, uchile, www]
+     for i in range(len(domain)):
+               domain[i] = domain[i] + "."
+     #[., cl., uchile., www.] 
+     for i in range(2, len(domain)):
+          domain[i] = domain[i] + domain[i-1]
+     #[., cl., uchile.cl., www.uchile.cl.]
      for part in domain:
-          q = DNSRecord.question(part)
-          sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-          try:
-               sock.sendto(bytes(q.pack()), server_address)
-               data, _ = sock.recvfrom(BUFF_SIZE)
-               d = DNSRecord.parse(data)
-          finally:
-               sock.close()
-          resource_records = d.rr
-          for a in resource_records:
-               if(a.rtype == 1):
-                    return a.rdata
+          dnslib_reply = send_dns_message(part ,server_address[0], server_address[1])
+          number_of_authority_elements = dnslib_reply.header.auth
+          number_of_answer_elements = dnslib_reply.header.a
+          number_of_additional_elements = dnslib_reply.header.ar
+          if(number_of_answer_elements > 0):
+               first_answer = dnslib_reply.get_a()
+               name_server = first_answer.get_rname()
+
+          if number_of_additional_elements > 0:
+               additional_records = dnslib_reply.ar 
+               first_additional_record = additional_records[0]
+               ar_type = QTYPE.get(first_additional_record.rclass) 
+               if ar_type == 'A': # si el tipo es 'A' (Address)
+                    name_server = first_additional_record.rname  # nombre de dominio             
+                    #server_ip = first_additional_record.rdata  # IP asociada
+
+          elif number_of_authority_elements > 0:
+               authority_section_list = dnslib_reply.auth  # contiene un total de number_of_authority_elements
+               if len(authority_section_list) > 0:
+                    authority_section_0_rdata = authority_section_list[0].rdata
+                    # si recibimos auth_type = 'SOA' este es un objeto tipo dnslib.dns.SOA
+                    if isinstance(authority_section_0_rdata, dnslib.dns.SOA):
+                         name_server = authority_section_0_rdata.get_mname()  # servidor de nombre primario
+
+                    elif isinstance(authority_section_0_rdata, dnslib.dns.NS): # si en vez de SOA recibimos un registro tipo NS
+                         name_server = authority_section_0_rdata  # entonces authority_section_0_rdata contiene el nombre de dominio del primer servidor de nombre de la lista
+          
+          dnslib_reply = send_dns_message(name_server ,server_address[0], server_address[1])
+          number_of_authority_elements = dnslib_reply.header.auth
+          number_of_answer_elements = dnslib_reply.header.a
+          number_of_additional_elements = dnslib_reply.header.ar
+
+          if(number_of_answer_elements > 0):
+               first_answer = dnslib_reply.get_a()
+               ip_address = first_answer.get_rdata()
+
+          elif number_of_additional_elements > 0:
+               additional_records = dnslib_reply.ar 
+               first_additional_record = additional_records[0]
+               ar_type = QTYPE.get(first_additional_record.rclass) 
+               if ar_type == 'A': # si el tipo es 'A' (Address)           
+                    server_ip = first_additional_record.rdata  # IP asociada
+          server_address[0] = ip_address
+
+     return server_address[0]
+          
+               
+
 
 while True:
      resolver_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
