@@ -12,7 +12,6 @@ BUFF_SIZE = 4096
 
 def send_dns_message(address, port, qname = "example.com"):
      # Acá ya no tenemos que crear el encabezado porque dnslib lo hace por nosotros, por default pregunta por el tipo A
-     qname = "example.com"
      q = DNSRecord.question(qname)
      server_address = (address, port)
      sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -96,7 +95,7 @@ def DNSresolver(domain_name, server_address=("8.8.8.8", 53)):
 
           if(number_of_answer_elements > 0):
                first_answer = dnslib_reply.get_a()
-               server_ip = str(first_answer.get_rdata())
+               server_ip = str(first_answer.rdata)
 
           elif number_of_additional_elements > 0:
                additional_records = dnslib_reply.ar 
@@ -106,10 +105,10 @@ def DNSresolver(domain_name, server_address=("8.8.8.8", 53)):
                     server_ip = str(first_additional_record.rdata)  # IP asociada
 
           if server_ip != "":
-               print(f"(debug) consultando {part} en {server_ip}")
+               print(f"(debug) consultando {name_server} en {server_ip}")
           else:
-               print(f"(debug) no se pudo resolver {part}")
-          server_address[0] = server_ip
+               print(f"(debug) no se pudo resolver {name_server}")
+          server_address = (server_ip, 53)
 
      print(f"{domain_name} -> {server_ip}")
      return server_address[0]
@@ -120,13 +119,13 @@ while True:
      resolver_socket.bind((SOCKET_HOST, SOCKET_PORT))
      received, client_address = resolver_socket.recvfrom(BUFF_SIZE)
 
-     domain_name = Z = str(sys.argv[1])
+     domain_name = str(sys.argv[1])
 
-     print("Received: ", received)
-     print("Parsed: ", parse_dns_message(received))
-     print("Packed: ", pack_dns_message(parse_dns_message(received)))
+     # print("Received: ", received)
+     # print("Parsed: ", parse_dns_message(received))
+     # print("Packed: ", pack_dns_message(parse_dns_message(received)))
 
-     print("RESOLVER: " + str(DNSresolver("www.uchile.cl")))
+     # print("RESOLVER: " + str(DNSresolver("www.uchile.cl")))
      print("RESOLVER: " + str(DNSresolver(domain_name)))
      break
 # print(received)
