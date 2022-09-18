@@ -5,6 +5,18 @@ from dnslib import DNSRecord
 from dnslib.dns import CLASS, QTYPE
 import dnslib
 import sys
+from dnslib.dns import RR, A
+from dnslib import DNSRecord, DNSHeader, DNSQuestion
+
+# # Modificar el mensaje de pregunta (opción 1)
+# dns_query.add_answer(RR(qname, QTYPE.A, rdata=A(ip_answer)))
+
+# # Modificar el mensaje de pregunta (opción 2)
+# dns_query.add_answer(*RR.fromZone("{} A {}".format(qname, ip_answer)))
+
+# # Crear un nuevo mensaje que contenga la pregunta y la respuesta
+# dns_answer = DNSRecord(id=ans_id, qr=1, aa=1, ra=0, q=DNSQuestion(qname), a=RR(qname, rdata=A(ip_answer)))
+
 
 SOCKET_HOST = "localhost"
 SOCKET_PORT = 5300
@@ -126,6 +138,9 @@ while True:
      # print("Packed: ", pack_dns_message(parse_dns_message(received)))
 
      # print("RESOLVER: " + str(DNSresolver("www.uchile.cl")))
-     print("RESOLVER: " + str(DNSresolver(domain_name)))
+     response = str(DNSresolver(domain_name))
+     print("RESOLVER: " + response)
+     
+     
      break
 # print(received)
