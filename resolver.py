@@ -50,7 +50,7 @@ def pack_dns_message(dns_message):
 example = send_dns_message("8.8.8.8", 53)
 print(example)
 
-def DNSresolver(domain_name, server_address=("8.8.8.8", 53)):
+def domainToList(domain_name):
      if(domain_name[-1] != "."):
            domain_name = domain_name + "."
      domain = domain_name.split(".")
@@ -62,15 +62,21 @@ def DNSresolver(domain_name, server_address=("8.8.8.8", 53)):
      for i in range(2, len(domain)):
           domain[i] = domain[i] + domain[i-1]
      #[., cl., uchile.cl., www.uchile.cl.]
+     return domain
 
-     # DESCOMENTA ESTO PA CUANDO PRUEBES GERARDO QLO
-     #server_ip = ""
+def DNSresolver(domain_name, server_address=("8.8.8.8", 53)):
+     domain = domainToList(domain_name)
+     # server_ip = ""
+     # dns_answer = ""
      for part in domain:
           dnslib_reply = send_dns_message(server_address[0], server_address[1], qname = part)
+          # if dns_answer == "":
+          #      dns_answer = dnslib_reply
           number_of_authority_elements = dnslib_reply.header.auth
           number_of_answer_elements = dnslib_reply.header.a
           number_of_additional_elements = dnslib_reply.header.ar
           name_server = ""
+          server_ip = ""
           if number_of_answer_elements > 0 and name_server == "":
                first_answer = dnslib_reply.get_a()
                name_server = str(first_answer.get_rname())
@@ -81,7 +87,7 @@ def DNSresolver(domain_name, server_address=("8.8.8.8", 53)):
                ar_type = QTYPE.get(first_additional_record.rclass) 
                if ar_type == 'A': # si el tipo es 'A' (Address)
                     name_server = str(first_additional_record.rname)  # nombre de dominio             
-                    #server_ip = first_additional_record.rdata  # IP asociada
+                    server_ip = first_additional_record.rdata  # IP asociada
 
           if number_of_authority_elements > 0 and name_server == "":
                authority_section_list = dnslib_reply.auth  # contiene un total de number_of_authority_elements
@@ -103,13 +109,12 @@ def DNSresolver(domain_name, server_address=("8.8.8.8", 53)):
           number_of_authority_elements = dnslib_reply.header.auth
           number_of_answer_elements = dnslib_reply.header.a
           number_of_additional_elements = dnslib_reply.header.ar
-          server_ip = ""
 
-          if(number_of_answer_elements > 0):
+          if number_of_answer_elements > 0 and server_ip == "":
                first_answer = dnslib_reply.get_a()
                server_ip = str(first_answer.rdata)
 
-          elif number_of_additional_elements > 0:
+          elif number_of_additional_elements > 0 and server_ip == "":
                additional_records = dnslib_reply.ar 
                first_additional_record = additional_records[0]
                ar_type = QTYPE.get(first_additional_record.rclass) 
@@ -131,15 +136,19 @@ while True:
      resolver_socket.bind((SOCKET_HOST, SOCKET_PORT))
      received, client_address = resolver_socket.recvfrom(BUFF_SIZE)
 
-     domain_name = str(sys.argv[1])
+     qname = str(sys.argv[1])
 
-     # print("Received: ", received)
+     received_copy = parse_dns_message(received)
+     print("Received: ", received)
+     print("Parsed Received: ", str(received_copy))
+     ip_answer = str(DNSresolver(qname))
+     received_copy.add_answer(RR(qname, QTYPE.A, rdata=A(ip_answer)))
      # print("Parsed: ", parse_dns_message(received))
      # print("Packed: ", pack_dns_message(parse_dns_message(received)))
 
      # print("RESOLVER: " + str(DNSresolver("www.uchile.cl")))
-     response = str(DNSresolver(domain_name))
-     print("RESOLVER: " + response)
+     resolver_socket.sendto(pack_dns_message(received_copy), client_address)
+     print("RESOLVER: " + ip_answer)
      
      
      break
