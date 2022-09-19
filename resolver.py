@@ -22,6 +22,10 @@ SOCKET_HOST = "localhost"
 SOCKET_PORT = 5300
 BUFF_SIZE = 4096
 
+cache = {}
+dom_list = [None]*100
+COUNT = 0
+
 def send_dns_message(address, port, qname = "example.com"):
      # Acá ya no tenemos que crear el encabezado porque dnslib lo hace por nosotros, por default pregunta por el tipo A
      q = DNSRecord.question(qname)
@@ -46,10 +50,6 @@ def parse_dns_message(dns_message):
 def pack_dns_message(dns_message):
      return dns_message.pack()
 
-# Es dnslib la que sabe como se debe imprimir la estructura, usa el mismo formato que dig, los datos NO vienen en un string gigante, sino en una estructura de datos
-example = send_dns_message("8.8.8.8", 53)
-print(example)
-
 def domainToList(domain_name):
      if(domain_name[-1] != "."):
            domain_name = domain_name + "."
@@ -66,12 +66,9 @@ def domainToList(domain_name):
 
 def DNSresolver(domain_name, server_address=("8.8.8.8", 53)):
      domain = domainToList(domain_name)
-     # server_ip = ""
-     # dns_answer = ""
+
      for part in domain:
           dnslib_reply = send_dns_message(server_address[0], server_address[1], qname = part)
-          # if dns_answer == "":
-          #      dns_answer = dnslib_reply
           number_of_authority_elements = dnslib_reply.header.auth
           number_of_answer_elements = dnslib_reply.header.a
           number_of_additional_elements = dnslib_reply.header.ar
@@ -141,6 +138,23 @@ while True:
      received_copy = parse_dns_message(received)
      print("Received: ", received)
      print("Parsed Received: ", str(received_copy))
+
+     # # CACHE
+     # dom_list[COUNT%100] = qname
+     # cache_counted = {i:dom_list.count(i) for i in dom_list}
+     # cache_counted = sorted(cache_counted, key = cache_counted.get, reverse = True)
+     # top10 = cache_counted[:10]
+     # if qname in cache:
+     #      print("Cache hit")
+     #      ip_answer = cache[qname]
+     # else:
+     #      print("Cache miss")
+     #      cache.pop(qname, None)
+     #      ip_answer = str(DNSresolver(qname))
+     #      if qname in top10:
+     #           cache[qname] = ip_answer
+     # COUNT += 1
+
      ip_answer = str(DNSresolver(qname))
      received_copy.add_answer(RR(qname, QTYPE.A, rdata=A(ip_answer)))
      # print("Parsed: ", parse_dns_message(received))
@@ -150,6 +164,5 @@ while True:
      resolver_socket.sendto(pack_dns_message(received_copy), client_address)
      print("RESOLVER: " + ip_answer)
      
-     
+
      break
-# print(received)
