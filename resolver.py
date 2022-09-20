@@ -8,15 +8,6 @@ import sys
 from dnslib.dns import RR, A
 from dnslib import DNSRecord, DNSHeader, DNSQuestion
 
-# # Modificar el mensaje de pregunta (opción 1)
-# dns_query.add_answer(RR(qname, QTYPE.A, rdata=A(ip_answer)))
-
-# # Modificar el mensaje de pregunta (opción 2)
-# dns_query.add_answer(*RR.fromZone("{} A {}".format(qname, ip_answer)))
-
-# # Crear un nuevo mensaje que contenga la pregunta y la respuesta
-# dns_answer = DNSRecord(id=ans_id, qr=1, aa=1, ra=0, q=DNSQuestion(qname), a=RR(qname, rdata=A(ip_answer)))
-
 
 SOCKET_HOST = "localhost"
 SOCKET_PORT = 5300
@@ -121,7 +112,7 @@ def DNSresolver(domain_name, server_address=("8.8.8.8", 53)):
 
           if server_ip != "" and DEBUG:
                print(f"(debug) consultando {name_server} en {server_ip}")
-          elif DEBUG:
+          else:
                server_ip = DNSresolver(name_server, ("8.8.8.8", 53))
                if server_ip == "" and DEBUG:
                     print(f"(debug) no se pudo resolver {name_server}")
@@ -176,6 +167,6 @@ while True:
           # print("Packed: ", pack_dns_message(parse_dns_message(received)))
 
           # print("RESOLVER: " + str(DNSresolver("www.uchile.cl")))
-          resolver_socket.sendto(pack_dns_message(received_copy), client_address)
           print("RESOLVER: " + ip_answer)
+     resolver_socket.sendto(pack_dns_message(received_copy), client_address)
      break
