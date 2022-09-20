@@ -12,7 +12,7 @@ from dnslib import DNSRecord, DNSHeader, DNSQuestion
 SOCKET_HOST = "localhost"
 SOCKET_PORT = 5300
 BUFF_SIZE = 4096
-DEBUG = True
+DEBUG = False
 
 cache = {}
 dom_list = [None]*100
@@ -28,7 +28,7 @@ def send_dns_message(address, port, qname = "example.com"):
          sock.sendto(bytes(q.pack()), server_address)
          # En data quedará la respuesta a nuestra consulta
          data, _ = sock.recvfrom(4096)
-         print("This is the data: ", data)
+         # print("This is the data: ", data)
          # le pedimos a dnslib que haga el trabajo de parsing por nosotros 
          d = DNSRecord.parse(data)
      finally:
@@ -112,10 +112,12 @@ def DNSresolver(domain_name, server_address=("8.8.8.8", 53)):
 
           if server_ip != "" and DEBUG:
                print(f"(debug) consultando {name_server} en {server_ip}")
-          else:
+          elif server_ip == "":
                server_ip = DNSresolver(name_server, ("8.8.8.8", 53))
                if server_ip == "" and DEBUG:
                     print(f"(debug) no se pudo resolver {name_server}")
+                    return ""
+               elif server_ip == "":
                     return ""
           server_address = (server_ip, 53)
 
@@ -148,25 +150,31 @@ while True:
      resolver_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
      resolver_socket.bind((SOCKET_HOST, SOCKET_PORT))
      received, client_address = resolver_socket.recvfrom(BUFF_SIZE)
-
-     qname_list = []
-     for arg in sys.argv[1:]:
-          qname_list.append(arg)
-
      received_copy = parse_dns_message(received)
-     print("Received: ", received)
-     print("Parsed Received: ", str(received_copy))
+     qname_list = []
+     print("Received from client: ", received_copy)
+     if DEBUG:
+          for arg in sys.argv[1:]:
+               qname_list.append(arg)
+          for qname in qname_list:
+               # CACHE
+               ip_answer = resolverWithCache(qname)
 
-     for qname in qname_list:
+               # ip_answer = str(DNSresolver(qname))
+               received_copy.add_answer(RR(qname, QTYPE.A, rdata=A(ip_answer)))
+               # print("Parsed: ", parse_dns_message(received))
+               # print("Packed: ", pack_dns_message(parse_dns_message(received)))
+
+               # print("RESOLVER: " + str(DNSresolver("www.uchile.cl")))
+               print("RESOLVER: " + ip_answer)
+     else:
+          qname = str(received_copy.get_q().get_qname())
+          print("QNAME: ", qname)
           # CACHE
           ip_answer = resolverWithCache(qname)
-
-          # ip_answer = str(DNSresolver(qname))
           received_copy.add_answer(RR(qname, QTYPE.A, rdata=A(ip_answer)))
-          # print("Parsed: ", parse_dns_message(received))
-          # print("Packed: ", pack_dns_message(parse_dns_message(received)))
-
-          # print("RESOLVER: " + str(DNSresolver("www.uchile.cl")))
           print("RESOLVER: " + ip_answer)
+
+     print("Received: ", received)
+     print("Parsed Received: ", str(received_copy))
      resolver_socket.sendto(pack_dns_message(received_copy), client_address)
-     break
